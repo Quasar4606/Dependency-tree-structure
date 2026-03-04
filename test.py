@@ -70,8 +70,8 @@ print("Max arity",max(arity_values))
 print("Average arity(non-leaf):" ,sum(non_zero)/len(non_zero))
 n = len(children)
 
-rand_children = generate_random_tree(n)
+root,rand_children = generate_random_tree(n)
 
-rand_depth = compute_depth(1, rand_children)
+rand_depth = compute_depth(root , rand_children)
 
 print("Random depth:", rand_depth)

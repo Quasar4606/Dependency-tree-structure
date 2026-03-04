@@ -154,4 +154,4 @@ def generate_random_tree(n):
     root = random.randint(1, n)
     rand_children = make_directed_tree(edges, root)
 
-    return rand_children
+    return root,rand_children
