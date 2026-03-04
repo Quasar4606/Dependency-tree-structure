@@ -12,9 +12,9 @@
 #     print(token["id"],token["form"], "->head:", token["head"])
 
 from conllu import parse
-from tree_gen import generate_random_tree
+from src.tree_gen import generate_random_tree
 
-with open("en-sud-train.conllu", "r", encoding="utf-8") as f:
+with open("data/en-sud-train.conllu", "r", encoding="utf-8") as f:
     data = f.read()
 
 sentences = parse(data)
