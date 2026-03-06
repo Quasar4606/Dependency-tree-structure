@@ -6,6 +6,8 @@ def extract_parent_map(sentence):
     parent = {}
 
     for token in sentence:
+        if not isinstance(token["id"], int):
+            continue
         parent[token["id"]] = token["head"]
 
     return parent
