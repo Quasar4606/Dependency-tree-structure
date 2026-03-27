@@ -4,9 +4,17 @@ from scipy.stats import ttest_rel, mannwhitneyu
 
 RESULT_DIR = "results"
 
+# dedicated folder
+CROSS_DIR = os.path.join(RESULT_DIR, "cross_language")
+os.makedirs(CROSS_DIR, exist_ok=True)
+
 summary = []
 
+# iterate over languages
 for language in os.listdir(RESULT_DIR):
+
+    if language == "cross_language":
+        continue
 
     csv_path = os.path.join(RESULT_DIR, language, "results_depth.csv")
 
@@ -15,37 +23,44 @@ for language in os.listdir(RESULT_DIR):
 
     df = pd.read_csv(csv_path)
 
-    # -----------------------------
-    # DEPTH TESTS
-    # -----------------------------
+    if len(df) == 0:
+        continue
 
+    # depth tests
     t_stat_d, t_p_d = ttest_rel(df["real_depth"], df["random_depth"])
-    u_stat_d, u_p_d = mannwhitneyu(df["real_depth"], df["random_depth"])
 
-    # -----------------------------
-    # MAX ARITY TESTS
-    # -----------------------------
+    _, u_p_d = mannwhitneyu(
+        df["real_depth"],
+        df["random_depth"],
+        alternative="two-sided"
+    )
 
+    # arity tests
     t_stat_a, t_p_a = ttest_rel(df["real_max_arity"], df["random_max_arity"])
-    u_stat_a, u_p_a = mannwhitneyu(df["real_max_arity"], df["random_max_arity"])
+
+    _, u_p_a = mannwhitneyu(
+        df["real_max_arity"],
+        df["random_max_arity"],
+        alternative="two-sided"
+    )
 
     summary.append({
-        "language": language,
-        "depth_t_stat": t_stat_d,
-        "depth_t_p": t_p_d,
-        "depth_mw_p": u_p_d,
-        "arity_t_stat": t_stat_a,
-        "arity_t_p": t_p_a,
-        "arity_mw_p": u_p_a
+        "Language": language.capitalize(),
+        "Depth t-stat": round(t_stat_d, 3),
+        "Depth p-value": t_p_d,
+        "Depth MW p-value": u_p_d,
+        "Arity t-stat": round(t_stat_a, 3),
+        "Arity p-value": t_p_a,
+        "Arity MW p-value": u_p_a
     })
 
-    print(language)
-    print("Depth t-test:", t_stat_d, t_p_d)
-    print("Depth Mann-Whitney:", u_p_d)
-    print("Arity t-test:", t_stat_a, t_p_a)
-    print("Arity Mann-Whitney:", u_p_a)
-    print()
+    print(f"\n=== {language.upper()} ===")
+    print(f"Depth p={t_p_d:.3e}, Arity p={t_p_a:.3e}")
 
+# create table
 summary_df = pd.DataFrame(summary)
 
-summary_df.to_csv("results/statistical_tests.csv", index=False)
+# save to cross_language folder
+summary_df.to_csv(os.path.join(CROSS_DIR, "statistical_tests.csv"), index=False)
+
+print(f"\nSaved statistical tests in {CROSS_DIR}/")
