@@ -12,44 +12,61 @@ rows = []
 # collect summary statistics for each language
 for language in os.listdir(RESULT_DIR):
 
-    lang_path = os.path.join(RESULT_DIR, language)
-
-    # skip the cross_language folder itself
     if language == "cross_language":
         continue
 
-    csv_path = os.path.join(lang_path, "results_depth.csv")
+    lang_path = os.path.join(RESULT_DIR, language)
+    csv_path = os.path.join(lang_path, "results_full.csv")  # UPDATED
 
     if not os.path.exists(csv_path):
         continue
 
     df = pd.read_csv(csv_path)
 
-    # skip empty files just in case
     if len(df) == 0:
         continue
 
-    # basic averages
+    # -----------------------------
+    # Depth
+    # -----------------------------
     real_depth = df["real_depth"].mean()
     random_depth = df["random_depth"].mean()
-
-    # how much deeper random trees are on average
     depth_gap = (df["random_depth"] - df["real_depth"]).mean()
-
-    # percentage of sentences where random tree is deeper
     random_deeper = (df["random_depth"] > df["real_depth"]).mean() * 100
 
-    # branching comparison
+    # -----------------------------
+    # Average Depth
+    # -----------------------------
+    real_avg_depth = df["real_avg_depth"].mean()
+    random_avg_depth = df["random_avg_depth"].mean()
+
+    # -----------------------------
+    # Dependency Length (MOST IMPORTANT)
+    # -----------------------------
+    real_dl = df["real_dl"].mean()
+    random_dl = df["random_dl"].mean()
+    dl_gap = (df["random_dl"] - df["real_dl"]).mean()
+    random_dl_higher = (df["random_dl"] > df["real_dl"]).mean() * 100
+
+    # -----------------------------
+    # Branching
+    # -----------------------------
     real_arity = df["real_max_arity"].mean()
     random_arity = df["random_max_arity"].mean()
 
     rows.append({
         "Language": language.capitalize(),
         "Sentences": len(df),
-        "Real Depth": real_depth,
-        "Random Depth": random_depth,
+
         "Depth Gap": depth_gap,
         "Random Deeper (%)": random_deeper,
+
+        "Avg Depth (Real)": real_avg_depth,
+        "Avg Depth (Random)": random_avg_depth,
+
+        "DL Gap": dl_gap,
+        "Random DL Higher (%)": random_dl_higher,
+
         "Real Max Arity": real_arity,
         "Random Max Arity": random_arity
     })
@@ -57,17 +74,17 @@ for language in os.listdir(RESULT_DIR):
 # create table
 table = pd.DataFrame(rows)
 
-# sort languages by strongest depth difference
-table = table.sort_values("Depth Gap", ascending=False).reset_index(drop=True)
+# sort by strongest signal (DL gap is best)
+table = table.sort_values("DL Gap", ascending=False).reset_index(drop=True)
 
-# round values for readability
+# round for readability
 table = table.round(3)
 
-# print nicely (for quick inspection)
+# print nicely
 print("\nCross-language summary:\n")
 print(table.to_string(index=False))
 
-# save inside cross_language folder
+# save
 output_path = os.path.join(CROSS_DIR, "cross_language_summary.csv")
 table.to_csv(output_path, index=False)
 

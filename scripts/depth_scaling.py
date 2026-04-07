@@ -18,7 +18,7 @@ for language in os.listdir(RESULT_DIR):
     if language == "cross_language":
         continue
 
-    csv_path = os.path.join(RESULT_DIR, language, "results_depth.csv")
+    csv_path = os.path.join(RESULT_DIR, language, "results_full.csv")
 
     if not os.path.exists(csv_path):
         continue
@@ -42,8 +42,8 @@ for language in os.listdir(RESULT_DIR):
 
     rows.append({
         "Language": language.capitalize(),
-        "Real Exponent": real_slope,
-        "Random Exponent": rand_slope
+        "Real Scaling Exponent": real_slope,
+        "Random Scaling Exponent": rand_slope
     })
 
 # create table
@@ -59,15 +59,14 @@ table.to_csv(os.path.join(CROSS_DIR, "depth_scaling_summary.csv"), index=False)
 # -----------------------------
 # Plot comparison
 # -----------------------------
-
 x = range(len(table))
 
 plt.figure(figsize=(10,6))
 
-plt.bar(x, table["Real Exponent"], width=0.4,
+plt.bar(x, table["Real Scaling Exponent"], width=0.4,
         label="Real", color="steelblue")
 
-plt.bar([i + 0.4 for i in x], table["Random Exponent"], width=0.4,
+plt.bar([i + 0.4 for i in x], table["Random Scaling Exponent"], width=0.4,
         label="Random", color="darkorange")
 
 plt.xticks([i + 0.2 for i in x], table["Language"], rotation=45)

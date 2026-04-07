@@ -16,7 +16,7 @@ for language in os.listdir(RESULT_DIR):
     if language == "cross_language":
         continue
 
-    csv_path = os.path.join(RESULT_DIR, language, "results_depth.csv")
+    csv_path = os.path.join(RESULT_DIR, language, "results_full.csv")  # UPDATED
 
     if not os.path.exists(csv_path):
         continue
@@ -26,36 +26,58 @@ for language in os.listdir(RESULT_DIR):
     if len(df) == 0:
         continue
 
-    # depth tests
-    t_stat_d, t_p_d = ttest_rel(df["real_depth"], df["random_depth"])
+    # -----------------------------
+    # Depth
+    # -----------------------------
+    t_d, p_d = ttest_rel(df["real_depth"], df["random_depth"])
+    _, mw_d = mannwhitneyu(df["real_depth"], df["random_depth"], alternative="two-sided")
 
-    _, u_p_d = mannwhitneyu(
-        df["real_depth"],
-        df["random_depth"],
-        alternative="two-sided"
-    )
+    # -----------------------------
+    # Average Depth
+    # -----------------------------
+    t_ad, p_ad = ttest_rel(df["real_avg_depth"], df["random_avg_depth"])
+    _, mw_ad = mannwhitneyu(df["real_avg_depth"], df["random_avg_depth"], alternative="two-sided")
 
-    # arity tests
-    t_stat_a, t_p_a = ttest_rel(df["real_max_arity"], df["random_max_arity"])
+    # -----------------------------
+    # Dependency Length (MOST IMPORTANT)
+    # -----------------------------
+    t_dl, p_dl = ttest_rel(df["real_dl"], df["random_dl"])
+    _, mw_dl = mannwhitneyu(df["real_dl"], df["random_dl"], alternative="two-sided")
 
-    _, u_p_a = mannwhitneyu(
-        df["real_max_arity"],
-        df["random_max_arity"],
-        alternative="two-sided"
-    )
+    # -----------------------------
+    # Max Arity
+    # -----------------------------
+    t_a, p_a = ttest_rel(df["real_max_arity"], df["random_max_arity"])
+    _, mw_a = mannwhitneyu(df["real_max_arity"], df["random_max_arity"], alternative="two-sided")
+
+    # -----------------------------
+    # Entropy (optional interpretation)
+    # -----------------------------
+    t_e, p_e = ttest_rel(df["real_entropy"], df["random_entropy"])
+    _, mw_e = mannwhitneyu(df["real_entropy"], df["random_entropy"], alternative="two-sided")
 
     summary.append({
         "Language": language.capitalize(),
-        "Depth t-stat": round(t_stat_d, 3),
-        "Depth p-value": t_p_d,
-        "Depth MW p-value": u_p_d,
-        "Arity t-stat": round(t_stat_a, 3),
-        "Arity p-value": t_p_a,
-        "Arity MW p-value": u_p_a
+
+        "Depth p": p_d,
+        "Avg Depth p": p_ad,
+        "Dependency Length p": p_dl,
+        "Arity p": p_a,
+        "Entropy p": p_e,
+
+        "Depth MW p": mw_d,
+        "Avg Depth MW p": mw_ad,
+        "DL MW p": mw_dl,
+        "Arity MW p": mw_a,
+        "Entropy MW p": mw_e
     })
 
     print(f"\n=== {language.upper()} ===")
-    print(f"Depth p={t_p_d:.3e}, Arity p={t_p_a:.3e}")
+    print(f"Depth p={p_d:.3e}")
+    print(f"Avg Depth p={p_ad:.3e}")
+    print(f"DL p={p_dl:.3e}")
+    print(f"Arity p={p_a:.3e}")
+    print(f"Entropy p={p_e:.3e}")
 
 # create table
 summary_df = pd.DataFrame(summary)
