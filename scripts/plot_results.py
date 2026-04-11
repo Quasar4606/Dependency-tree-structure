@@ -4,11 +4,48 @@ import matplotlib.pyplot as plt
 
 RESULT_DIR = "results"
 
-# iterate over each language folder
+# -----------------------------
+# LENGTH-BASED PLOTS
+# -----------------------------
+LENGTH_METRICS = [
+    ("depth", "Tree Depth"),
+    ("avg_depth", "Average Depth"),
+    ("arity", "Maximum Arity"),
+    ("entropy", "Degree Entropy"),
+    ("dl", "Dependency Length"),
+    ("ic", "Intervener Complexity"),
+    ("wic", "Weighted IC"),
+    ("pic", "Path Integration Cost"),
+    ("lca", "Average LCA Depth"),
+]
+
+# -----------------------------
+# DISTRIBUTIONS 
+# -----------------------------
+DIST_METRICS = [
+    ("arity", "Maximum Arity"),  # ← added
+    ("dl", "Dependency Length"),
+    ("ic", "IC"),
+    ("wic", "WIC"),
+    ("pic", "PIC"),
+]
+
+# -----------------------------
+# GAP METRICS
+# -----------------------------
+GAP_METRICS = [
+    "depth",
+    "arity",
+    "dl",
+    "ic",
+    "wic",
+    "pic"
+]
+
 for language in os.listdir(RESULT_DIR):
 
     lang_path = os.path.join(RESULT_DIR, language)
-    csv_path = os.path.join(lang_path, "results_full.csv")  # UPDATED FILE
+    csv_path = os.path.join(lang_path, "results_full.csv")
 
     if not os.path.exists(csv_path):
         continue
@@ -17,215 +54,104 @@ for language in os.listdir(RESULT_DIR):
 
     df = pd.read_csv(csv_path)
 
-    # -----------------------------
-    # Depth vs sentence length
-    # -----------------------------
-    depth_grouped = df.groupby("length").agg({
-        "real_depth": ["mean", "count"],
-        "random_depth": "mean"
-    })
+    # =============================
+    # LENGTH-BASED PLOTS
+    # =============================
+    for metric, label in LENGTH_METRICS:
 
-    depth_grouped.columns = ["real_mean", "count", "random_mean"]
-    depth_grouped = depth_grouped[depth_grouped["count"] >= 20]
+        real_col = f"real_{metric}"
+        rand_col = f"random_{metric}"
 
-    plt.figure(figsize=(8,5))
+        if real_col not in df or rand_col not in df:
+            continue
 
-    plt.plot(depth_grouped.index, depth_grouped["real_mean"],
-             label="Real", linewidth=2, color="steelblue")
+        grouped = df.groupby("length").agg({
+            real_col: ["mean", "count"],
+            rand_col: "mean"
+        })
 
-    plt.plot(depth_grouped.index, depth_grouped["random_mean"],
-             label="Random", linewidth=2, color="darkorange")
+        grouped.columns = ["real_mean", "count", "random_mean"]
+        grouped = grouped[grouped["count"] >= 20]
 
-    plt.xlabel("Sentence Length")
-    plt.ylabel("Average Tree Depth")
-    plt.title(f"Depth vs Sentence Length — {language.capitalize()}")
+        plt.figure(figsize=(8, 5))
 
-    plt.legend()
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
+        plt.plot(grouped.index, grouped["real_mean"], linewidth=2, label="Real")
+        plt.plot(grouped.index, grouped["random_mean"], linewidth=2, label="Random")
 
-    plt.savefig(os.path.join(lang_path, "depth_vs_length.png"))
-    plt.close()
+        plt.xlabel("Sentence Length")
+        plt.ylabel(label)
+        plt.title(f"{label} vs Length — {language.capitalize()}")
 
-    # -----------------------------
-    # Average depth vs length (NEW)
-    # -----------------------------
-    avg_depth_grouped = df.groupby("length").agg({
-        "real_avg_depth": ["mean", "count"],
-        "random_avg_depth": "mean"
-    })
+        plt.legend()
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.tight_layout()
 
-    avg_depth_grouped.columns = ["real_mean", "count", "random_mean"]
-    avg_depth_grouped = avg_depth_grouped[avg_depth_grouped["count"] >= 20]
+        plt.savefig(os.path.join(lang_path, f"{metric}_vs_length.png"))
+        plt.close()
 
-    plt.figure(figsize=(8,5))
+    # =============================
+    # DISTRIBUTION PLOTS 
+    # =============================
+    for metric, label in DIST_METRICS:
 
-    plt.plot(avg_depth_grouped.index, avg_depth_grouped["real_mean"],
-             label="Real", linewidth=2, color="steelblue")
+        real_col = f"real_{metric}"
+        rand_col = f"random_{metric}"
 
-    plt.plot(avg_depth_grouped.index, avg_depth_grouped["random_mean"],
-             label="Random", linewidth=2, color="darkorange")
+        if real_col not in df or rand_col not in df:
+            continue
 
-    plt.xlabel("Sentence Length")
-    plt.ylabel("Average Depth")
-    plt.title(f"Average Depth vs Length — {language.capitalize()}")
+        plt.figure(figsize=(8, 5))
 
-    plt.legend()
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
+        plt.hist(df[real_col], bins=30, alpha=0.6, label="Real")
+        plt.hist(df[rand_col], bins=30, alpha=0.6, label="Random")
 
-    plt.savefig(os.path.join(lang_path, "avg_depth_vs_length.png"))
-    plt.close()
+        plt.xlabel(label)
+        plt.ylabel("Frequency")
+        plt.title(f"{label} Distribution — {language.capitalize()}")
 
-    # -----------------------------
-    # Dependency Length vs length (NEW, IMPORTANT)
-    # -----------------------------
-    dl_grouped = df.groupby("length").agg({
-        "real_dl": ["mean", "count"],
-        "random_dl": "mean"
-    })
+        plt.legend()
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.tight_layout()
 
-    dl_grouped.columns = ["real_mean", "count", "random_mean"]
-    dl_grouped = dl_grouped[dl_grouped["count"] >= 20]
+        plt.savefig(os.path.join(lang_path, f"{metric}_distribution.png"))
+        plt.close()
 
-    plt.figure(figsize=(8,5))
+    # =============================
+    # GAP PLOTS
+    # =============================
+    for metric in GAP_METRICS:
 
-    plt.plot(dl_grouped.index, dl_grouped["real_mean"],
-             label="Real", linewidth=2, color="steelblue")
+        real_col = f"real_{metric}"
+        rand_col = f"random_{metric}"
 
-    plt.plot(dl_grouped.index, dl_grouped["random_mean"],
-             label="Random", linewidth=2, color="darkorange")
+        if real_col not in df or rand_col not in df:
+            continue
 
-    plt.xlabel("Sentence Length")
-    plt.ylabel("Dependency Length")
-    plt.title(f"Dependency Length vs Length — {language.capitalize()}")
+        if metric == "pic":
+            gap = df[real_col] - df[rand_col]
+            xlabel = f"Real − Random ({metric.upper()})"
+        else:
+            gap = df[rand_col] - df[real_col]
+            xlabel = f"Random − Real ({metric.upper()})"
 
-    plt.legend()
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
+        plt.figure(figsize=(8, 5))
+        plt.hist(gap, bins=30)
 
-    plt.savefig(os.path.join(lang_path, "dl_vs_length.png"))
-    plt.close()
+        plt.xlabel(xlabel)
+        plt.ylabel("Frequency")
+        plt.title(f"{metric.upper()} Gap — {language.capitalize()}")
 
-    # -----------------------------
-    # Max arity vs sentence length
-    # -----------------------------
-    arity_grouped = df.groupby("length").agg({
-        "real_max_arity": ["mean", "count"],
-        "random_max_arity": "mean"
-    })
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.tight_layout()
 
-    arity_grouped.columns = ["real_mean", "count", "random_mean"]
-    arity_grouped = arity_grouped[arity_grouped["count"] >= 20]
+        plt.savefig(os.path.join(lang_path, f"{metric}_gap.png"))
+        plt.close()
 
-    plt.figure(figsize=(8,5))
+        print(f"{metric.upper()} gap mean:", round(gap.mean(), 3))
 
-    plt.plot(arity_grouped.index, arity_grouped["real_mean"],
-             label="Real", linewidth=2, color="steelblue")
-
-    plt.plot(arity_grouped.index, arity_grouped["random_mean"],
-             label="Random", linewidth=2, color="darkorange")
-
-    plt.xlabel("Sentence Length")
-    plt.ylabel("Average Max Arity")
-    plt.title(f"Branching vs Sentence Length — {language.capitalize()}")
-
-    plt.legend()
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
-
-    plt.savefig(os.path.join(lang_path, "arity_vs_length.png"))
-    plt.close()
-
-    # -----------------------------
-    # Max arity distribution
-    # -----------------------------
-    plt.figure(figsize=(8,5))
-
-    plt.hist(df["real_max_arity"], bins=15, alpha=0.6,
-             label="Real", color="steelblue")
-
-    plt.hist(df["random_max_arity"], bins=15, alpha=0.6,
-             label="Random", color="darkorange")
-
-    plt.xlabel("Max Arity")
-    plt.ylabel("Frequency")
-    plt.title(f"Distribution of Branching — {language.capitalize()}")
-
-    plt.legend()
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
-
-    plt.savefig(os.path.join(lang_path, "arity_distribution.png"))
-    plt.close()
-
-    # -----------------------------
-    # Dependency Length distribution (NEW)
-    # -----------------------------
-    plt.figure(figsize=(8,5))
-
-    plt.hist(df["real_dl"], bins=30, alpha=0.6,
-             label="Real", color="steelblue")
-
-    plt.hist(df["random_dl"], bins=30, alpha=0.6,
-             label="Random", color="darkorange")
-
-    plt.xlabel("Dependency Length")
-    plt.ylabel("Frequency")
-    plt.title(f"Dependency Length Distribution — {language.capitalize()}")
-
-    plt.legend()
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
-
-    plt.savefig(os.path.join(lang_path, "dl_distribution.png"))
-    plt.close()
-
-    # -----------------------------
-    # Depth gap histogram
-    # -----------------------------
-    df["depth_gap"] = df["random_depth"] - df["real_depth"]
-
-    plt.figure(figsize=(8,5))
-
-    plt.hist(df["depth_gap"], bins=30, color="purple")
-
-    plt.xlabel("Random Depth − Real Depth")
-    plt.ylabel("Frequency")
-    plt.title(f"Depth Difference — {language.capitalize()}")
-
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
-
-    plt.savefig(os.path.join(lang_path, "depth_gap.png"))
-    plt.close()
-
-    # -----------------------------
-    # Dependency Length gap (NEW)
-    # -----------------------------
-    df["dl_gap"] = df["random_dl"] - df["real_dl"]
-
-    plt.figure(figsize=(8,5))
-
-    plt.hist(df["dl_gap"], bins=30, color="green")
-
-    plt.xlabel("Random DL − Real DL")
-    plt.ylabel("Frequency")
-    plt.title(f"Dependency Length Difference — {language.capitalize()}")
-
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
-
-    plt.savefig(os.path.join(lang_path, "dl_gap.png"))
-    plt.close()
-
-    # -----------------------------
-    # Quick summary
-    # -----------------------------
-    print("Average depth gap:", round(df["depth_gap"].mean(), 3))
-    print("Percent random deeper:",
-          round((df["random_depth"] > df["real_depth"]).mean() * 100, 2))
-
-    print("Average DL gap:", round(df["dl_gap"].mean(), 3))
-    print("Percent random DL higher:",
-          round((df["random_dl"] > df["real_dl"]).mean() * 100, 2))
+        if metric == "pic":
+            percent = (df[real_col] > df[rand_col]).mean() * 100
+            print(f"Real higher % ({metric}):", round(percent, 2))
+        else:
+            percent = (df[rand_col] > df[real_col]).mean() * 100
+            print(f"Random higher % ({metric}):", round(percent, 2))

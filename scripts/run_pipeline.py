@@ -11,21 +11,24 @@ from src.metrics import (
     compute_max_arity,
     compute_degree_entropy,
     compute_dependency_length,
-    compute_random_tree_dl
+    compute_random_tree_dl,
+    compute_ic,
+    compute_wic,
+    compute_random_tree_ic,
+    compute_random_tree_wic,
+    compute_pic_all_pairs_from_children,
+    compute_avg_lca_depth
 )
 
-# fix randomness so results are reproducible across runs
 random.seed(42)
 
 DATA_DIR = "data"
 RESULT_DIR = "results"
-NUM_RANDOM = 20  # number of random trees per sentence
+NUM_RANDOM = 20
 
-# ensure results folder exists
 os.makedirs(RESULT_DIR, exist_ok=True)
 
 
-# loop over all datasets (each file corresponds to one language)
 for file in os.listdir(DATA_DIR):
 
     if not file.endswith(".conllu"):
@@ -38,35 +41,14 @@ for file in os.listdir(DATA_DIR):
     print(f"Processing language: {language}")
     print("==============================")
 
-    # read and parse dependency trees
     with open(data_path, "r", encoding="utf-8") as f:
-        data = f.read()
+        sentences = parse(f.read())
 
-    sentences = parse(data)
-
-    # -----------------------------
-    # containers for statistics
-    # -----------------------------
-    real_depths = []
-    random_depths = []
-
-    real_avg_depths = []
-    random_avg_depths = []
-
-    real_dls = []
-    random_dls = []
-
-    real_entropies = []
-    random_entropies = []
-
-    max_real_arities = []
-    max_rand_arities = []
-
+    # containers
+    real_metrics = []
+    random_metrics = []
     results = []
 
-    # -----------------------------
-    # process each sentence
-    # -----------------------------
     for sentence in sentences:
         try:
             root, children = build_tree(sentence)
@@ -74,128 +56,108 @@ for file in os.listdir(DATA_DIR):
             continue
 
         n = len(children)
-
         if n < 3:
             continue
 
-        # ----- REAL TREE METRICS -----
-        real_depth = compute_depth(root, children)
-        real_avg_depth = compute_average_depth(root, children)
-        real_arity = compute_max_arity(children)
-        real_entropy = compute_degree_entropy(children)
-        real_dl = compute_dependency_length(sentence)
+        # ---------- REAL ----------
+        real = {
+            "depth": compute_depth(root, children),
+            "avg_depth": compute_average_depth(root, children),
+            "arity": compute_max_arity(children),
+            "entropy": compute_degree_entropy(children),
+            "dl": compute_dependency_length(sentence),
+            "ic": compute_ic(sentence),
+            "wic": compute_wic(sentence),
+            "pic": compute_pic_all_pairs_from_children(children),
+            "lca": compute_avg_lca_depth(children)
+        }
 
-        real_depths.append(real_depth)
-        real_avg_depths.append(real_avg_depth)
-        real_entropies.append(real_entropy)
-        real_dls.append(real_dl)
-        max_real_arities.append(real_arity)
-
-        # ----- RANDOM TREE METRICS -----
-        rand_depths = []
-        rand_avg_depths = []
-        rand_arities = []
-        rand_entropies = []
-        rand_dls = []
+        # ---------- RANDOM ----------
+        rand_acc = {k: 0 for k in real}
 
         for _ in range(NUM_RANDOM):
             rand_root, rand_children = generate_random_tree(n)
 
-            rand_depths.append(compute_depth(rand_root, rand_children))
-            rand_avg_depths.append(compute_average_depth(rand_root, rand_children))
-            rand_arities.append(compute_max_arity(rand_children))
-            rand_entropies.append(compute_degree_entropy(rand_children))
-            rand_dls.append(compute_random_tree_dl(rand_children))
+            rand_acc["depth"] += compute_depth(rand_root, rand_children)
+            rand_acc["avg_depth"] += compute_average_depth(rand_root, rand_children)
+            rand_acc["arity"] += compute_max_arity(rand_children)
+            rand_acc["entropy"] += compute_degree_entropy(rand_children)
+            rand_acc["dl"] += compute_random_tree_dl(rand_children)
+            rand_acc["ic"] += compute_random_tree_ic(rand_children)
+            rand_acc["wic"] += compute_random_tree_wic(rand_children)
+            rand_acc["pic"] += compute_pic_all_pairs_from_children(rand_children)
+            rand_acc["lca"] += compute_avg_lca_depth(rand_children)
 
-        # average random metrics
-        rand_depth = sum(rand_depths) / NUM_RANDOM
-        rand_avg_depth = sum(rand_avg_depths) / NUM_RANDOM
-        rand_arity = sum(rand_arities) / NUM_RANDOM
-        rand_entropy = sum(rand_entropies) / NUM_RANDOM
-        rand_dl = sum(rand_dls) / NUM_RANDOM
+        rand = {k: rand_acc[k] / NUM_RANDOM for k in rand_acc}
 
-        random_depths.append(rand_depth)
-        random_avg_depths.append(rand_avg_depth)
-        random_entropies.append(rand_entropy)
-        random_dls.append(rand_dl)
-        max_rand_arities.append(rand_arity)
+        real_metrics.append(real)
+        random_metrics.append(rand)
 
-        # store per-sentence results
         results.append({
             "n": n,
-            "real_depth": real_depth,
-            "random_depth": rand_depth,
-            "real_avg_depth": real_avg_depth,
-            "random_avg_depth": rand_avg_depth,
-            "real_arity": real_arity,
-            "random_arity": rand_arity,
-            "real_entropy": real_entropy,
-            "random_entropy": rand_entropy,
-            "real_dl": real_dl,
-            "random_dl": rand_dl
+            **{f"real_{k}": v for k, v in real.items()},
+            **{f"random_{k}": v for k, v in rand.items()}
         })
 
     # -----------------------------
-    # aggregate statistics
+    # aggregate
     # -----------------------------
-    def avg(x): return sum(x) / len(x)
+    def avg(lst, key):
+        return sum(x[key] for x in lst) / len(lst)
 
-    print("\nSentences processed:", len(real_depths))
+    print("\nSentences processed:", len(real_metrics))
 
-    print("\n--- Depth ---")
-    print("Real:", avg(real_depths))
-    print("Random:", avg(random_depths))
+    for key in ["depth", "avg_depth", "arity", "entropy", "dl", "ic", "wic", "pic", "lca"]:
+        print(f"\n--- {key.upper()} ---")
+        print("Real:", avg(real_metrics, key))
+        print("Random:", avg(random_metrics, key))
 
-    print("\n--- Average Depth ---")
-    print("Real:", avg(real_avg_depths))
-    print("Random:", avg(random_avg_depths))
-
-    print("\n--- Dependency Length ---")
-    print("Real:", avg(real_dls))
-    print("Random:", avg(random_dls))
-
-    print("\n--- Degree Entropy ---")
-    print("Real:", avg(real_entropies))
-    print("Random:", avg(random_entropies))
-
-    print("\n--- Max Arity ---")
-    print("Real:", avg(max_real_arities))
-    print("Random:", avg(max_rand_arities))
-
-    # sanity signals
+    # -----------------------------
+    # sanity checks
+    # -----------------------------
     print("\n--- Sanity Checks ---")
-    print("Random deeper %:",
-          sum(1 for i in range(len(real_depths)) if random_depths[i] > real_depths[i]) / len(real_depths) * 100)
 
-    print("Random DL higher %:",
-          sum(1 for i in range(len(real_dls)) if random_dls[i] > real_dls[i]) / len(real_dls) * 100)
+    def percent_random_higher(metric):
+        return sum(
+            1 for i in range(len(real_metrics))
+            if random_metrics[i][metric] > real_metrics[i][metric]
+        ) / len(real_metrics) * 100
+
+    def percent_real_higher(metric):
+        return sum(
+            1 for i in range(len(real_metrics))
+            if real_metrics[i][metric] > random_metrics[i][metric]
+        ) / len(real_metrics) * 100
+
+    # metrics where lower is better
+    for m in ["depth", "dl", "ic", "wic"]:
+        print(f"Random higher ({m}): {percent_random_higher(m):.2f}")
+
+    # PIC: higher is interpreted as stronger structure
+    print(f"Real higher (pic): {percent_real_higher('pic'):.2f}")
 
     # -----------------------------
-    # save results
+    # save CSV
     # -----------------------------
     lang_result_dir = os.path.join(RESULT_DIR, language)
     os.makedirs(lang_result_dir, exist_ok=True)
 
     output_file = os.path.join(lang_result_dir, "results_full.csv")
 
+    keys = ["depth", "avg_depth", "arity", "entropy", "dl", "ic", "wic", "pic", "lca"]
+
     with open(output_file, "w", newline="") as f:
         writer = csv.writer(f)
 
-        writer.writerow([
-            "length",
-            "real_depth", "random_depth",
-            "real_avg_depth", "random_avg_depth",
-            "real_max_arity", "random_max_arity",
-            "real_entropy", "random_entropy",
-            "real_dl", "random_dl"
-        ])
+        writer.writerow(
+            ["length"] +
+            [f"real_{k}" for k in keys] +
+            [f"random_{k}" for k in keys]
+        )
 
         for r in results:
-            writer.writerow([
-                r["n"],
-                r["real_depth"], r["random_depth"],
-                r["real_avg_depth"], r["random_avg_depth"],
-                r["real_arity"], r["random_arity"],
-                r["real_entropy"], r["random_entropy"],
-                r["real_dl"], r["random_dl"]
-            ])
+            writer.writerow(
+                [r["n"]] +
+                [r[f"real_{k}"] for k in keys] +
+                [r[f"random_{k}"] for k in keys]
+            )
