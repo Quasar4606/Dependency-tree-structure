@@ -170,13 +170,31 @@ results/
 
 ## Reproducibility
 
-pip install -r requirements.txt  
+```bash
+pip install -r requirements.txt
 
-python scripts/run_pipeline.py  
-python scripts/plot_results.py  
-python scripts/cross_language_table.py  
-python scripts/cross_language_plot.py  
-python scripts/stats_test.py  
+python3 -m scripts.run_pipeline
+python3 -m scripts.plot_results
+python3 -m scripts.cross_language_table
+python3 -m scripts.cross_language_plot
+python3 -m scripts.stats_test 
+python3 -m scripts.depth_scaling
+
+---
+
+## Data Setup
+
+Place all datasets inside a `data/` directory in the root of the project.
+
+The pipeline automatically processes all `.conllu` files in this directory.
+
+The language name is inferred from the filename as the prefix before the first `-`.
+
+For example:
+- `english-sud-train.conllu` → language = `english`
+- `hindi-treebank.conllu` → language = `hindi`
+
+Any `.conllu` file can be used, but using consistent naming helps keep results organized.
 
 ---
 
